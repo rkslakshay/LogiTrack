@@ -1,0 +1,21 @@
+# Keep the build context small and free of secrets and local data.
+node_modules
+.next
+.git
+.github
+.env
+.env.*
+!.env.example
+prisma/*.db
+prisma/*.db-*
+prisma/*.db.partial
+prisma/backups
+prisma/test-backups
+prisma/app-secret.key
+data
+perf-results
+playwright-report
+test-results
+coverage
+tsconfig.tsbuildinfo
+*.log

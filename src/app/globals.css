@@ -1,0 +1,203 @@
+@import "tailwindcss";
+/* Never scan runtime data for class names: SQLite files there are locked while the server runs. */
+@source not "../../prisma";
+@source not "../../perf-results";
+@source not "../../test-results";
+@source not "../../playwright-report";
+
+/* LogiTrack design tokens. One palette, one radius scale, used everywhere. */
+@theme {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --color-navy-950: #071226;
+  --color-navy-900: #0b1b33;
+  --color-navy-800: #12284a;
+  --color-navy-700: #1b3760;
+  --color-navy-300: #9db1cf;
+  --color-navy-200: #c3d0e4;
+
+  --color-canvas: #f4f6f9;
+  --color-surface: #ffffff;
+  --color-line: #e3e8ef;
+  --color-line-strong: #cdd5df;
+  --color-ink: #0f1b2d;
+  --color-ink-2: #45556c;
+  --color-ink-3: #5b6b81; /* 5.4:1 on white, 5.0:1 on canvas (WCAG AA for small text) */
+
+  --color-primary: #2563eb;
+  --color-primary-hover: #1d4ed8;
+  --color-primary-soft: #eaf1ff;
+
+  --color-success: #137535; /* 5.2:1 on success-soft */
+  --color-success-soft: #e7f6ec;
+  --color-warning: #b45309;
+  --color-warning-soft: #fdf3e1;
+  --color-danger: #c81e1e;
+  --color-danger-soft: #fdecec;
+  --color-info: #1d4ed8;
+  --color-info-soft: #eaf1ff;
+  --color-violet: #6d28d9;
+  --color-violet-soft: #f1ebfe;
+  --color-neutral-soft: #eef1f5;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  --shadow-card: 0 1px 2px rgb(15 27 45 / 0.05);
+  --shadow-pop: 0 8px 24px rgb(15 27 45 / 0.14), 0 1px 3px rgb(15 27 45 / 0.08);
+
+  --animate-fade-in: fade-in 0.15s ease-out;
+  --animate-dialog-in: dialog-in 0.16s ease-out;
+  --animate-slide-in: slide-in 0.2s ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes dialog-in {
+    from { opacity: 0; transform: translate(-50%, -48%) scale(0.98); }
+    to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  }
+  @keyframes slide-in {
+    from { transform: translateX(-100%); }
+    to { transform: translateX(0); }
+  }
+}
+
+html {
+  color-scheme: light;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Numbers in tables and KPIs line up. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* Thin, unobtrusive scrollbars inside panels. */
+.scroll-thin {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-line-strong) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* --- Leaflet ------------------------------------------------------------------ */
+.leaflet-container {
+  font-family: var(--font-sans);
+  background: #e8edf3;
+  z-index: 0;
+}
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-pop);
+}
+.leaflet-popup-content {
+  margin: 12px 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.lt-marker {
+  background: transparent;
+  border: 0;
+}
+.lt-vehicle {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* Smooth movement between simulator ticks. */
+  transition: transform 0.4s linear;
+}
+.leaflet-marker-icon.lt-marker {
+  transition: transform 1.9s linear;
+}
+.leaflet-zoom-anim .leaflet-marker-icon.lt-marker {
+  transition: none;
+}
+.lt-vehicle-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgb(15 27 45 / 0.35);
+  display: grid;
+  place-items: center;
+  color: #fff;
+}
+.lt-vehicle-dot svg {
+  width: 14px;
+  height: 14px;
+}
+.lt-vehicle.is-selected .lt-vehicle-dot {
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 0.35), 0 1px 4px rgb(15 27 45 / 0.35);
+  transform: scale(1.15);
+}
+.lt-vehicle-label {
+  margin-top: 2px;
+  padding: 0 5px;
+  border-radius: 3px;
+  background: rgb(11 27 51 / 0.88);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  line-height: 15px;
+}
+.lt-pin {
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 2px solid #fff;
+  box-shadow: 0 1px 4px rgb(15 27 45 / 0.35);
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* --- Landing page -------------------------------------------------------------- */
+.reveal {
+  opacity: 0;
+  transform: translateY(14px);
+  transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+  }
+}
+.hero-grid {
+  background-image:
+    radial-gradient(ellipse 80% 60% at 70% 0%, rgb(37 99 235 / 0.28), transparent 70%),
+    linear-gradient(rgb(255 255 255 / 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 0.035) 1px, transparent 1px);
+  background-size: auto, 44px 44px, 44px 44px;
+}

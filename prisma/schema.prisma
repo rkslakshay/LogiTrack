@@ -1,0 +1,370 @@
+// LogiTrack database schema (SQLite via Prisma).
+// Conventions:
+//  - Money is stored as integer paise (1 INR = 100 paise) to avoid float rounding.
+//  - Distances are kilometres (Float), odometers are whole kilometres (Int).
+//  - Coordinates are WGS84 decimal degrees (Float).
+//  - SQLite has no native enums; enum-like columns are Strings validated by Zod
+//    against the constants in src/lib/constants.ts.
+//  - Vehicles, drivers and users are soft-deleted (deletedAt / isActive) so that
+//    historical deliveries, fuel and maintenance records keep their references.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  phone        String?
+  passwordHash String
+  role         String // SUPER_ADMIN | FLEET_MANAGER | DISPATCHER | DRIVER
+  isActive     Boolean   @default(true)
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  sessions          Session[]
+  driver            Driver?
+  notifications     Notification[]
+  activityLogs      ActivityLog[]
+  deliveriesCreated Delivery[]      @relation("DeliveryCreatedBy")
+  deliveryEvents    DeliveryEvent[]
+  routesCreated     Route[]
+  fuelRecords       FuelRecord[]
+
+  // --- Account protection (v3) ---
+  /** Consecutive failed sign-ins; reset on success. Drives the temporary lockout. */
+  failedLoginCount  Int       @default(0)
+  lockedUntil       DateTime?
+  passwordChangedAt DateTime?
+  // Optional TOTP two-factor authentication. Secrets are encrypted at rest (AES-256-GCM)
+  // and never returned by the API once enrolment is complete.
+  mfaEnabled        Boolean   @default(false)
+  mfaSecret         String?
+  /** Secret generated during enrolment, until the first code is verified. */
+  mfaPendingSecret  String?
+  mfaEnabledAt      DateTime?
+  /** Last accepted TOTP time step, so a code cannot be replayed. */
+  mfaLastStep       Int?
+  recoveryCodes     MfaRecoveryCode[]
+  authChallenges    AuthChallenge[]
+  resetTokens       PasswordResetToken[]
+
+  @@index([role])
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA-256 of the opaque cookie token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent String?
+  /** Updated at most once a minute; drives the idle timeout. */
+  lastSeenAt DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model Driver {
+  id            String    @id @default(cuid())
+  code          String    @unique // DRV-0001
+  userId        String?   @unique // linked login account (role DRIVER)
+  user          User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  fullName      String
+  email         String    @unique
+  phone         String
+  address       String
+  licenseNumber String    @unique
+  licenseExpiry DateTime
+  joiningDate   DateTime
+  status        String    @default("AVAILABLE") // AVAILABLE | ON_DELIVERY | OFF_DUTY | INACTIVE
+  deletedAt     DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  vehicle    Vehicle?
+  deliveries Delivery[]
+  routes     Route[]
+
+  @@index([status])
+  @@index([licenseExpiry])
+}
+
+model Vehicle {
+  id                 String    @id @default(cuid())
+  code               String    @unique // VEH-0001
+  registrationNumber String    @unique
+  name               String
+  type               String // TRUCK | MINI_TRUCK | VAN | PICKUP | BIKE | CONTAINER
+  manufacturer       String
+  model              String
+  year               Int
+  fuelType           String // DIESEL | PETROL | CNG | ELECTRIC
+  fuelCapacity       Float // litres (kWh for electric)
+  odometer           Int       @default(0) // km
+  status             String    @default("AVAILABLE") // AVAILABLE | ON_DELIVERY | MAINTENANCE | INACTIVE
+  insuranceExpiry    DateTime
+  registrationExpiry DateTime
+  assignedDriverId   String?   @unique
+  assignedDriver     Driver?   @relation(fields: [assignedDriverId], references: [id], onDelete: SetNull)
+  lastLat            Float?
+  lastLng            Float?
+  lastHeading        Float?
+  lastLocationAt     DateTime?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  deliveries  Delivery[]
+  routes      Route[]
+  fuelRecords FuelRecord[]
+  maintenance MaintenanceRecord[]
+
+  @@index([status])
+  @@index([type])
+}
+
+model Delivery {
+  id                 String    @id @default(cuid())
+  code               String    @unique // DEL-0001
+  customerName       String
+  customerPhone      String
+  pickupAddress      String
+  destinationAddress String
+  pickupLat          Float
+  pickupLng          Float
+  destLat            Float
+  destLng            Float
+  driverId           String?
+  driver             Driver?   @relation(fields: [driverId], references: [id], onDelete: Restrict)
+  vehicleId          String?
+  vehicle            Vehicle?  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  scheduledAt        DateTime
+  expectedAt         DateTime
+  pickedUpAt         DateTime?
+  deliveredAt        DateTime? // actual delivery time
+  closedAt           DateTime? // when it reached any terminal status
+  distanceKm         Float
+  estimatedMinutes   Int
+  priority           String    @default("NORMAL") // LOW | NORMAL | HIGH | URGENT
+  status             String    @default("PENDING")
+  notes              String?
+  // Simulation / tracking state
+  progress           Float     @default(0) // 0..1 along routeGeometry
+  routeGeometry      String? // JSON [[lat,lng],...]
+  geometrySource     String? // "local" | "osrm"
+  routeId            String?
+  route              Route?    @relation(fields: [routeId], references: [id], onDelete: SetNull)
+  createdById        String?
+  createdBy          User?     @relation("DeliveryCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  events DeliveryEvent[]
+  stops  RouteStop[]
+
+  @@index([status])
+  @@index([scheduledAt])
+  @@index([driverId])
+  @@index([vehicleId])
+  @@index([priority])
+  // Dashboard and analytics filter closed deliveries by date; routes load their deliveries.
+  @@index([closedAt])
+  @@index([routeId])
+}
+
+model DeliveryEvent {
+  id         String   @id @default(cuid())
+  deliveryId String
+  delivery   Delivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+  type       String // CREATED | STATUS_CHANGE | ASSIGNMENT | UPDATED | ISSUE
+  status     String? // delivery status after this event
+  note       String?
+  userId     String?
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  createdAt  DateTime @default(now())
+
+  @@index([deliveryId, createdAt])
+}
+
+model Route {
+  id               String   @id @default(cuid())
+  code             String   @unique // RTE-0001
+  name             String
+  status           String   @default("PLANNED") // PLANNED | IN_PROGRESS | COMPLETED | CANCELLED
+  algorithm        String // e.g. "nearest-neighbor+2opt"
+  totalDistanceKm  Float
+  estimatedMinutes Int
+  vehicleId        String?
+  vehicle          Vehicle? @relation(fields: [vehicleId], references: [id], onDelete: SetNull)
+  driverId         String?
+  driver           Driver?  @relation(fields: [driverId], references: [id], onDelete: SetNull)
+  createdById      String?
+  createdBy        User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  stops      RouteStop[]
+  deliveries Delivery[]
+
+  @@index([status])
+}
+
+model RouteStop {
+  id         String    @id @default(cuid())
+  routeId    String
+  route      Route     @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  sequence   Int
+  type       String // START | PICKUP | DROPOFF
+  label      String
+  lat        Float
+  lng        Float
+  legKm      Float     @default(0) // distance from the previous stop
+  deliveryId String?
+  delivery   Delivery? @relation(fields: [deliveryId], references: [id], onDelete: SetNull)
+
+  @@unique([routeId, sequence])
+}
+
+model FuelRecord {
+  id                 String   @id @default(cuid())
+  code               String   @unique // FUEL-0001
+  vehicleId          String
+  vehicle            Vehicle  @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  date               DateTime
+  quantityL          Float
+  pricePerLitrePaise Int
+  totalCostPaise     Int
+  odometer           Int
+  station            String
+  notes              String?
+  createdById        String?
+  createdBy          User?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([vehicleId, date])
+  @@index([date])
+}
+
+model MaintenanceRecord {
+  id                  String    @id @default(cuid())
+  code                String    @unique // MNT-0001
+  vehicleId           String
+  vehicle             Vehicle   @relation(fields: [vehicleId], references: [id], onDelete: Restrict)
+  type                String // OIL_CHANGE | TYRE | BRAKE | ENGINE | BATTERY | INSPECTION | GENERAL_SERVICE | REPAIR
+  description         String
+  serviceDate         DateTime
+  nextServiceDate     DateTime?
+  nextServiceOdometer Int?
+  odometer            Int?
+  costPaise           Int       @default(0)
+  provider            String
+  status              String    @default("SCHEDULED") // SCHEDULED | IN_PROGRESS | COMPLETED | CANCELLED
+  completedAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([vehicleId, serviceDate])
+  @@index([status])
+}
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category   String // DELIVERY | MAINTENANCE | COMPLIANCE | VEHICLE | SYSTEM
+  severity   String   @default("INFO") // INFO | SUCCESS | WARNING | CRITICAL
+  title      String
+  message    String
+  entityType String?
+  entityId   String?
+  // Reminders are generated repeatedly; dedupeKey guarantees one row per user per condition.
+  dedupeKey  String?
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, dedupeKey])
+  @@index([userId, isRead, createdAt])
+}
+
+model ActivityLog {
+  id          String   @id @default(cuid())
+  userId      String?
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action      String // CREATE | UPDATE | DELETE | ASSIGN | STATUS_CHANGE | COMPLETE | LOGIN | LOGOUT
+  entityType  String
+  entityId    String?
+  description String
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([entityType, entityId])
+  @@index([userId])
+}
+
+/**
+ * Second step of a sign-in for accounts with two-factor authentication: issued after
+ * the password is accepted, exchanged for a real session once a code is verified.
+ */
+model AuthChallenge {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique // SHA-256 of the opaque cookie token
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+/**
+ * One-time password reset link, created by a Super Admin (or the command line) and
+ * handed to the user directly: no e-mail service is needed.
+ */
+model PasswordResetToken {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique // SHA-256; the token itself is shown once and never stored
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdById String?
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+/** Single-use two-factor recovery codes, stored only as bcrypt hashes. */
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+}
+
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
+model Counter {
+  name  String @id
+  value Int    @default(0)
+}

@@ -1,0 +1,39 @@
+# Optional container setup. The normal npm workflow (npm run dev) does not need it.
+#
+#   docker compose up --build -d     build and start in the background
+#   docker compose logs -f           follow the structured logs
+#   docker compose down              stop (data stays in the "logitrack-data" volume)
+#
+# Backups:  docker compose exec logitrack npx tsx scripts/db.ts backup
+services:
+  logitrack:
+    build: .
+    image: logitrack:3.0.0
+    container_name: logitrack
+    ports:
+      - "${LOGITRACK_PORT:-3000}:3000"
+    environment:
+      # Load the sample fleet into an EMPTY database on first start. Never overwrites existing data.
+      SEED_DEMO_DATA: "${SEED_DEMO_DATA:-true}"
+      DEMO_MODE: "${DEMO_MODE:-true}"
+      # Optional: at least 32 random characters. When unset, one is generated into the data volume.
+      APP_SECRET: "${APP_SECRET:-}"
+      # Set to true only behind HTTPS (Secure / __Host- cookies, HSTS).
+      COOKIE_SECURE: "${COOKIE_SECURE:-false}"
+      ROUTING_PROVIDER: "${ROUTING_PROVIDER:-local}"
+      BACKUP_INTERVAL_HOURS: "${BACKUP_INTERVAL_HOURS:-24}"
+      BACKUP_KEEP: "${BACKUP_KEEP:-7}"
+      LOG_FORMAT: json
+    volumes:
+      - logitrack-data:/data
+    restart: unless-stopped
+    stop_grace_period: 15s
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      start_period: 60s
+      retries: 3
+
+volumes:
+  logitrack-data:
