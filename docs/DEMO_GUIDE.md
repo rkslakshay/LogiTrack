@@ -56,7 +56,7 @@ Speaker notes are in *italics*. Each step names what to click and the point to m
 *"A driver sees only their own deliveries. The API returns 404 for anyone else's, even with the ID."*
 
 **9. Close (10 seconds)**
-*"322 unit and integration tests against a real database, and 47 browser tests for the main workflows, the security boundaries and an accessibility scan, running in CI on Windows and Linux. It runs entirely on free, open-source software."*
+*"329 unit and integration tests against a real database, and 47 browser tests for the main workflows, the security boundaries and an accessibility scan, running in CI on Windows and Linux. It runs entirely on free, open-source software."*
 
 ### If you have ten minutes
 

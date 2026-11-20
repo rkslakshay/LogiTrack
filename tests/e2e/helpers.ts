@@ -62,3 +62,5 @@ export function uniqueRegistration(): string {
 }
 
 export const isoDate = (offsetDays: number) => new Date(Date.now() + offsetDays * 86_400_000).toISOString().slice(0, 10);
+
+export { matchReasonAllowingClockDrift } from "./clock-drift";

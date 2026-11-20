@@ -2,6 +2,18 @@
 
 All notable changes to LogiTrack are recorded here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/) (see CONTRIBUTING.md).
 
+## [Unreleased]
+
+CI and dependency maintenance after the 3.0.0 release. No application behaviour changed.
+
+### Fixed
+- **Flaky end-to-end test "Delivery risk detection".** It read a risk reason from the API ("Projected to arrive 2 h 4 min after the expected time") and expected the delivery page to show the identical text, but the server recalculates the projection from the current time on every request. On the first CI run a minute boundary passed during the 26-second attempt, so the page correctly said "2 h 5 min" and the test failed (it passed on retry). The test now uses `matchReasonAllowingClockDrift` (`tests/e2e/clock-drift.ts`): the wording must match exactly, and durations may differ only by the minutes that actually elapsed since the API was read (+1 for rounding). Other numbers stay exact. The matcher has 7 unit tests, including the exact CI case. The test passed 10/10 times with retries off.
+
+### Changed
+- GitHub Actions: `actions/checkout`, `actions/setup-node` and `actions/upload-artifact` v4 → **v7** (Node 24 runtime; removes the Node 20 deprecation warning). The Linux and Windows matrix, the npm cache, `npm ci`, the audit gate and all test steps are unchanged.
+- Playwright `failOnFlakyTests` in CI: a test that only passes on its retry now fails the run instead of showing green. The retry still runs, so its trace and report are uploaded.
+- Dependabot policy (`.github/dependabot.yml`): Prisma CLI and client always update together; no automatic major versions for `prisma`, `@prisma/*`, `typescript`, `eslint`, `@types/node`, `next` or `eslint-config-next`; GitHub Actions updates grouped. See `docs/DEPENDENCY_AUDIT.md`.
+
 ## [3.0.0] - 2026-11-19
 
 Production engineering and release readiness. Upgrading from 2.x applies one database migration (`v3_account_security`) that adds columns and tables only. Back up first (`npm run db:backup`).

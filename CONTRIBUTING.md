@@ -78,7 +78,11 @@ npm run test:e2e      # stop `npm run dev` first; see README for browser options
 npm run build
 ```
 
-The same steps run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`).
+The same steps run in GitHub Actions on every push and pull request (`.github/workflows/ci.yml`), on Linux and Windows.
+
+**Flaky tests fail CI.** CI retries a failed Playwright test once (for its trace), but a test that only passes on the retry fails the run (`failOnFlakyTests`). Fix the cause rather than adding waits. Anything that depends on the clock must allow for it explicitly: see `tests/e2e/clock-drift.ts` for how risk explanations are compared.
+
+**Dependency updates.** Dependabot proposes grouped minor and patch updates weekly; majors for Prisma, TypeScript, ESLint, `@types/node` and Next.js are planned migrations and are not proposed automatically. The policy and its reasons are in [docs/DEPENDENCY_AUDIT.md](docs/DEPENDENCY_AUDIT.md#dependabot-policy).
 
 Expectations:
 

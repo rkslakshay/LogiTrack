@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { apiGet, apiSend, loginViaApi, toast, uniqueRegistration } from "./helpers";
+import { apiGet, apiSend, loginViaApi, matchReasonAllowingClockDrift, toast, uniqueRegistration } from "./helpers";
 
 // LogiTrack 2.0: the public landing page, the demo experience and the intelligence features.
 // This file runs first and ends with a demo reset, so the later specs start from clean sample data.
@@ -189,12 +189,18 @@ test.describe("Delivery risk detection", () => {
     for (const item of overview.items) expect(item.risk.reasons.length, item.code).toBeGreaterThan(0);
     const top = overview.items[0];
     expect(top.risk.level).toBe("HIGH");
+    // Reasons are recalculated from the clock on every request, so a duration in them
+    // ("2 h 4 min after the expected time") may tick on before a page shows it. The wording
+    // must match exactly; durations may differ only by the minutes elapsed since this read.
+    const readAt = Date.now();
+    const showsReason = (locator: ReturnType<Page["getByRole"]>, reason: string) =>
+      expect.poll(async () => matchReasonAllowingClockDrift(await locator.innerText(), reason, readAt), { message: `shows "${reason}"` }).toBeNull();
 
     await page.goto("/dashboard");
     const card = page.getByRole("region", { name: "Deliveries at risk" });
     await expect(card.getByRole("link", { name: top.code })).toBeVisible();
     await expect(card.getByText("High risk").first()).toBeVisible();
-    await expect(card.getByText(top.risk.reasons[0]).first()).toBeVisible();
+    await showsReason(card, top.risk.reasons[0]);
 
     // The list shows a risk level for open deliveries and none for closed ones.
     await page.goto("/deliveries");
@@ -208,7 +214,7 @@ test.describe("Delivery risk detection", () => {
     await page.goto(`/deliveries/${top.id}`);
     const panel = page.getByRole("region", { name: "Delay risk" });
     await expect(panel).toContainText("High risk");
-    for (const reason of top.risk.reasons) await expect(panel.getByText(reason)).toBeVisible();
+    for (const reason of top.risk.reasons) await showsReason(panel, reason);
     await expect(panel).toContainText("Projected arrival");
     await expect(panel).toContainText("Rule-based estimate");
   });

@@ -15,7 +15,7 @@ LogiTrack is a portfolio project. It has no production users, customers or deplo
 > - **CSV import:** it runs every row through the same business rules as the forms, inside a transaction, so it can never half-apply.
 > - **Backups:** they're verified before they count, and a restore is a single transaction.
 >
-> I also measured performance on a synthetic dataset of a thousand deliveries and fixed the two bottlenecks I found, and it has optional two-factor authentication, a Content Security Policy, 322 unit and integration tests, an end-to-end suite with an accessibility scan, and CI on Windows and Linux. Everything runs locally with no paid services."
+> I also measured performance on a synthetic dataset of a thousand deliveries and fixed the two bottlenecks I found, and it has optional two-factor authentication, a Content Security Policy, 329 unit and integration tests, an end-to-end suite with an accessibility scan, and CI on Windows and Linux. Everything runs locally with no paid services."
 
 ## Five-minute demo
 
@@ -183,4 +183,4 @@ The service layer and the domain modules would not need to change. That separati
 
 ## Numbers worth remembering
 
-76 API route files · 17 Prisma models · 4 roles · 322 Vitest + 47 Playwright tests · CI on Windows and Linux · simulator tick 31 ms for 40 vehicles · dashboard 32 ms median on 1,000 deliveries · 1,000-row import checked in 2.9 s and saved in 2.1 s · axe: 0 serious or critical issues on 20 pages · `npm audit`: 0 vulnerabilities.
+76 API route files · 17 Prisma models · 4 roles · 329 Vitest + 47 Playwright tests · CI on Windows and Linux · simulator tick 31 ms for 40 vehicles · dashboard 32 ms median on 1,000 deliveries · 1,000-row import checked in 2.9 s and saved in 2.1 s · axe: 0 serious or critical issues on 20 pages · `npm audit`: 0 vulnerabilities.

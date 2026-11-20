@@ -51,3 +51,35 @@ found 0 vulnerabilities
 ```
 
 No advisory was suppressed, no package was downgraded, and `npm audit fix --force` was not used.
+
+## Dependabot policy
+
+Configured in `.github/dependabot.yml` (since 20 Nov 2026):
+
+| Rule | Why |
+| --- | --- |
+| Patch and minor npm updates: weekly, **one grouped PR** | Low risk, easy to review; CI (Linux, Windows, Playwright, `npm audit`) must be green before a person merges. |
+| `prisma` and `@prisma/*` are **always updated together** (own group) | The client must match the CLI that generates it. PR #5 bumped only `@prisma/client` and could not generate. |
+| **No automatic major versions** for `prisma`, `@prisma/*`, `typescript`, `eslint`, `@types/node`, `next`, `eslint-config-next` | Each needs a planned migration or is blocked by a peer: Prisma 7 changes the generator and config; TypeScript 7 is not supported by `typescript-eslint` (≤ 6.0); ESLint 10 is outside the declared peer range of `eslint-plugin-react`, `jsx-a11y` and `import`; `@types/node` follows the Node.js LTS line LogiTrack supports (the engines field says ≥ 20.12, CI runs 22), not the newest Node; Next.js majors are deliberate upgrades together with its ESLint config. |
+| Every other package, majors included, is still proposed | One PR each, for review. |
+| GitHub Actions: monthly, **one grouped PR** | Actions are reviewed together. |
+| Security | GitHub's documentation says `ignore` rules also apply to security updates. So the ignore list is deliberately short and per-package (not `*`). A security fix that exists only in a new major of one of these packages is caught by `npm audit --audit-level=high` in CI (and by Dependabot alerts once they are enabled, see below) and is then handled by hand. Security updates for every other package are unaffected. |
+
+Merging, closing or dismissing Dependabot PRs is always a human decision.
+
+**Repository settings (checked 21 Nov 2026):** *Dependabot alerts* and *Dependabot security updates* are currently **off** for `rkslakshay/LogiTrack` (the API reports alerts as not enabled and `automated-security-fixes: enabled=false`). They are free for public repositories and are switched on by the owner under **Settings → Code security**. Until then, the active safeguard is the `npm audit --audit-level=high` step in CI, which runs on every push and pull request; the weekly version updates from `dependabot.yml` run regardless.
+
+## Dependabot PRs opened on the first push (20 Nov 2026)
+
+Reviewed individually from the PR diffs and their CI runs. **None was merged or closed**; that decision belongs to the repository owner.
+
+| PR | Change | Type | CI | Security relevance | Breaking-change risk | Recommendation |
+| --- | --- | --- | --- | --- | --- | --- |
+| #1 | `actions/upload-artifact` 4 → 7 | major (action) | ✅ all 3 jobs | none (no advisory) | low: inputs used (`name`, `path`, `retention-days`) unchanged; v7 runs on Node 24 | **Superseded by the local workflow update** (same versions). Close after that change is pushed, or merge either one. |
+| #2 | `actions/setup-node` 4 → 7 | major (action) | ✅ | none | low: `node-version` and `cache` unchanged; Node 24 runtime | **Superseded by the local workflow update.** |
+| #3 | `actions/checkout` 4 → 7 | major (action) | ✅ | none | low; Node 24 runtime | **Superseded by the local workflow update.** |
+| #4 | minor/patch group: `react` + `react-dom` 19.3.0 → 19.3.1, `tailwindcss` + `@tailwindcss/turbopack` 4.3.3 → 4.3.5, `lucide-react` ^1.73.0 → ^1.74.0, `@testing-library/user-event` ^14.6.10 → ^14.6.12 | patch + minor | ✅ all 3 jobs | none (`npm audit` was already 0) | low | **Appropriate to merge** after a quick look at the changelogs. |
+| #5 | `@prisma/client` 6.19.3 → 7.10.1 (CLI left at 6.19.3) | major | ❌ Linux and Windows: `prisma generate` fails (`Cannot find module …/query_engine_bg.sqlite.wasm-base64.js`); Playwright skipped | none | high: client/CLI mismatch; Prisma 7 is a planned migration | **Do not merge.** Close; the new config no longer proposes Prisma majors. |
+| #6 | `eslint` ^9 → ^10 (9.39.5 → 10.15.0) | major | ✅ (lint ran) | none | medium: `eslint-plugin-react` 7.37.5, `eslint-plugin-jsx-a11y` 6.10.2 and `eslint-plugin-import` 2.32.0 declare ESLint ≤ 9 peers; passing today is not supported compatibility | **Do not merge yet.** Revisit when `eslint-config-next`'s plugins support ESLint 10. |
+| #7 | `typescript` ^5 → ^7 (5.9.3 → 7.0.2) | major | ❌ Linux and Windows: ESLint crashes, "typescript-eslint does not support TS 7.0" (it supports `>=4.8.4 <6.1.0`); Playwright skipped | none | high | **Do not merge.** |
+| #8 | `@types/node` ^24.19.2 → ^26.6.6 | major (types only) | ✅ | none | medium: types for Node 26 would let code use APIs that do not exist on the Node versions LogiTrack supports and CI runs (22) | **Do not merge.** Stay on the 24.x line (Node 24 LTS). |

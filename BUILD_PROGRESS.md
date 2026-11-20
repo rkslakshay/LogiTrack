@@ -2,7 +2,7 @@
 
 Status legend: Not Started · In Progress · Implemented · Tested · **Completed** (implemented, covered by automated tests and verified in the running app).
 
-Last updated: 20 Nov 2026 · Version 3.0.0 (portfolio completion done, awaiting review and the first commit)
+Last updated: 20 Nov 2026 · Version 3.0.0 published (commit c556dac on GitHub) · CI hardening prepared locally, not yet committed
 
 ## Summary
 
@@ -12,11 +12,34 @@ Last updated: 20 Nov 2026 · Version 3.0.0 (portfolio completion done, awaiting 
 | Pages | 27 page routes (4 new in 3.0: Backup & Restore, Diagnostics, Import & Export, public Reset password) |
 | REST endpoints | 76 route files |
 | Database | 17 Prisma models, 3 migrations, deterministic demo-data generator, synthetic performance dataset |
-| Automated tests | **369 passing**: 322 Vitest (unit, integration, component) + 47 Playwright end-to-end |
+| Automated tests | **376 passing**: 329 Vitest (unit, integration, component) + 47 Playwright end-to-end |
 | Static checks | `tsc --noEmit` clean · `eslint` 0 findings · `next build` succeeds |
 | Cost | ₹0: no paid services, API keys or accounts |
 
 ---
+
+## CI hardening and dependency governance (20 Nov 2026, after the 3.0.0 release)
+
+3.0.0 was pushed to GitHub (`c556dac`) and the first CI run passed on Linux, Windows and Playwright, with one test flaky. The changes below are local and uncommitted, for review.
+
+| Area | Finding | Change | Status |
+| --- | --- | --- | --- |
+| Flaky e2e test | "Delivery risk detection" compared a clock-dependent reason ("2 h 4 min") read from the API with the page rendered later; a minute boundary passed on CI's slow first attempt. Confirmed from the CI log. | `tests/e2e/clock-drift.ts`: exact wording, durations allowed to drift only by the minutes actually elapsed (+1). Applied to the dashboard card and delivery panel checks. 7 unit tests. | **Fixed**: 10/10 repeats with retries off; full suite under CI settings 47/47, 0 flaky |
+| Flakiness policy | The flaky test showed as a green run. | `failOnFlakyTests` in CI (retry kept for traces). | **Done** |
+| Actions runtime | Node 20 deprecation warning from checkout, setup-node and upload-artifact v4. | All three → v7 (`using: node24`, verified from each action's `action.yml`); all inputs used are still supported. | **Done** (YAML parsed; not yet run on GitHub) |
+| Dependabot | 8 PRs on first push. #5 (Prisma client only) and #7 (TypeScript 7) fail CI; #6 (ESLint 10) passes but is outside plugin peer ranges; #8 (Node 26 types) mismatches the supported runtime; #1–#3 match the local Actions update; #4 (grouped patches) is safe. | New `dependabot.yml`: Prisma group, per-package major ignores (security implications documented), grouped Actions. Review table in `docs/DEPENDENCY_AUDIT.md`. | **Reviewed**; no PR merged or closed |
+| Repository security settings | Checked via the API: Dependabot **alerts** and **security updates** are off (an owner setting, not part of `dependabot.yml`). | Documented in `docs/DEPENDENCY_AUDIT.md`; CI's `npm audit --audit-level=high` is the active safeguard until the owner enables them. | **Needs owner decision** |
+
+### Verification (this run)
+
+| Check | Result |
+| --- | --- |
+| `npm audit` / `npm ls --all` | 0 vulnerabilities / consistent |
+| Prisma generate | OK |
+| TypeScript / ESLint | clean |
+| Vitest | **329 passed** (18 files) |
+| Playwright (Edge, `CI=true`: 1 retry, fail on flaky) | **47 passed**, 0 retried, 0 flaky |
+| Production build | succeeds, 0 warnings |
 
 ## Portfolio completion (20 Nov 2026, version stays 3.0.0)
 

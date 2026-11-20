@@ -1,3 +1,17 @@
+# Dependabot policy (see docs/DEPENDENCY_AUDIT.md, "Dependabot policy").
+#
+# - Patch and minor updates arrive weekly, grouped into one PR, and must pass CI on Linux,
+#   Windows and Playwright before a human merges them.
+# - Prisma's CLI and client are always updated together: a PR that moves only one of them
+#   cannot generate the client (that is what broke PR #5).
+# - Major versions of the packages below need a planned migration, so Dependabot does not
+#   propose them. Note: ignore rules also apply to security updates for these packages; a
+#   security fix that exists only in a new major is caught by `npm audit --audit-level=high`
+#   in CI (and by Dependabot alerts, when enabled in the repository settings) and is then
+#   handled by hand.
+# - Security updates themselves are a repository setting (Settings > Code security:
+#   Dependabot alerts and Dependabot security updates), not part of this file.
+# - Every other package, majors included, is still proposed (as its own PR) for review.
 version: 2
 updates:
   - package-ecosystem: npm
@@ -6,9 +20,35 @@ updates:
       interval: weekly
     open-pull-requests-limit: 5
     groups:
+      prisma:
+        patterns: ["prisma", "@prisma/*"]
       minor-and-patch:
         update-types: [minor, patch]
+    ignore:
+      # Prisma 7 changes the client generator and configuration (planned migration).
+      - dependency-name: "prisma"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@prisma/*"
+        update-types: ["version-update:semver-major"]
+      # TypeScript majors wait until typescript-eslint supports them (8.73 supports < 6.1).
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      # ESLint majors wait until eslint-config-next's plugins declare support (react, jsx-a11y and import stop at ESLint 9).
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
+      # Node type definitions follow the Node.js LTS line LogiTrack supports and CI runs, not the newest Node.
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
+      # Next.js and its ESLint config are upgraded together, deliberately.
+      - dependency-name: "next"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint-config-next"
+        update-types: ["version-update:semver-major"]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
+    groups:
+      github-actions:
+        patterns: ["*"]

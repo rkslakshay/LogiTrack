@@ -18,6 +18,9 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 1 : 0,
+  // A test that only passes on its retry is flaky: in CI that fails the run instead of
+  // showing green (the retry still runs, so its trace and report are uploaded for diagnosis).
+  failOnFlakyTests: !!process.env.CI,
   timeout: 180_000,
   expect: { timeout: 20_000 },
   reporter: [["list"], ["html", { open: "never" }]],

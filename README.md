@@ -14,7 +14,7 @@
 ![SQLite](https://img.shields.io/badge/SQLite-WAL-003b57?logo=sqlite&logoColor=white)
 ![Socket.IO 4](https://img.shields.io/badge/Socket.IO-4-010101?logo=socketdotio)
 ![Tailwind CSS 4](https://img.shields.io/badge/Tailwind_CSS-4-06b6d4?logo=tailwindcss&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-322_Vitest_%2B_47_Playwright-16a34a)
+![Tests](https://img.shields.io/badge/tests-329_Vitest_%2B_47_Playwright-16a34a)
 
 ![LogiTrack dashboard](docs/assets/screenshots/dashboard.webp)
 
@@ -365,7 +365,7 @@ npm run build
 
 | Suite | Tests | Covers |
 | --- | --- | --- |
-| Vitest | **322** (17 files) | **Unit:** geo maths and the optimiser, delivery state machine, fuel maths, scoring, reminders, permissions, CSV, every Zod schema, intelligence rules, password policy, encryption, rate limiting, log redaction, CSP, start-up checks. **Integration** (real services against a throwaway SQLite database): auth and sessions, lockout, two-factor with replay, recovery codes, reset links, fleet CRUD, assignment races, every status transition, fuel, maintenance, routes, simulator, analytics, reports, demo reset, backup/verify/restore, diagnostics, CSV import and export, security regressions (IDOR, mass assignment, revocation). **Component:** data table, pagination, filters, form fields, badges. |
+| Vitest | **329** (18 files) | **Unit:** geo maths and the optimiser, delivery state machine, fuel maths, scoring, reminders, permissions, CSV, every Zod schema, intelligence rules, password policy, encryption, rate limiting, log redaction, CSP, start-up checks. **Integration** (real services against a throwaway SQLite database): auth and sessions, lockout, two-factor with replay, recovery codes, reset links, fleet CRUD, assignment races, every status transition, fuel, maintenance, routes, simulator, analytics, reports, demo reset, backup/verify/restore, diagnostics, CSV import and export, security regressions (IDOR, mass assignment, revocation). **Component:** data table, pagination, filters, form fields, badges. |
 | Playwright | **47** | Landing and demo access, guided tour, navigation and permissions for all four roles, websocket security, five end-to-end workflows (fleet setup, dispatch, GPS simulation to completion, fuel, maintenance), CSP and headers, an access-control inventory of 25 endpoints, backups and diagnostics UI, CSV import, **axe accessibility scan of 20 pages** |
 
 Tests never touch your data: Vitest uses `prisma/test.db` and Playwright `prisma/e2e.db`, both rebuilt from migrations on every run. GitHub Actions runs the checks on **Linux and Windows**, plus `npm audit --audit-level=high` and the Playwright suite (`.github/workflows/ci.yml`).
